@@ -1,0 +1,10 @@
+services:
+  kanboard:
+    image: kanboard/kanboard:v1.2.45
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - kanboard_data:/var/www/app/data
+
+volumes:
+  kanboard_data:
