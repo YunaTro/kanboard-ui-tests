@@ -2,6 +2,14 @@ import pytest
 from playwright.sync_api import Page, expect
 
 from uuid import uuid4
+from pages.login_page import LoginPage
+from pages.dashboard_page import DashboardPage
+from pages.create_project_page import CreateProjectPage
+from pages.project_page import ProjectPage
+
+@pytest.fixture
+def login_page(page: Page):
+    return LoginPage(page)
 
 @pytest.fixture(scope="session")
 def browser_context_args(browser_context_args):
@@ -15,19 +23,12 @@ def browser_context_args(browser_context_args):
 
 @pytest.fixture
 def authenticated_page(page: Page):
-    page.goto("/")
-
-    login_field = page.get_by_label("Username", exact=True)
-    login_field.fill("admin")
+    login = LoginPage(page)
+    login.open()
+    login.login(username="admin", password="admin")
     
-    password_field = page.get_by_label("Password", exact=True)
-    password_field.fill("admin")
-    
-    sign_in_button = page.get_by_role(role="button", name="Sign in", exact=True)
-    sign_in_button.click()
-    
-    search_field = page.get_by_label("Search", exact=True)
-    expect(search_field).to_be_visible()
+    dashboard = DashboardPage(page)
+    expect(dashboard.search_field).to_be_visible()
 
     return page
 
@@ -35,34 +36,26 @@ def authenticated_page(page: Page):
 def test_project(authenticated_page: Page):
     project_name = f"UI project {uuid4().hex[:8]}"
 
-    open_project_link = authenticated_page.get_by_role("link", name="New project", exact=True)
-    expect(open_project_link).to_be_visible()
-    open_project_link.click()
+    dashboard = DashboardPage(authenticated_page)
+    expect(dashboard.open_project_link).to_be_visible()
+    dashboard.open_project_creation()
 
-    name_field = authenticated_page.get_by_label("Name", exact=True)
-    name_field.fill(project_name)
-
-    save_button = authenticated_page.get_by_role(role="button", name="Save", exact=True)
-    save_button.click()
-
-    header = authenticated_page.locator(".title")
-    expect(header).to_have_text(project_name)
+    project_form = CreateProjectPage(authenticated_page)
+    project_form.create(project_name)
 
     authenticated_page.wait_for_url("**/project/**")
     project_url = authenticated_page.url
+    project = ProjectPage(authenticated_page)
 
     try:
+        expect(project.header).to_have_text(project_name)
         yield {
             "name": project_name,
             "url": project_url,
         }
     finally:
-        authenticated_page.goto(project_url)
-        remove_project_link = authenticated_page.get_by_role("link", name="Remove", exact=True)
-        expect(remove_project_link).to_be_visible()
-        remove_project_link.click()
+        project.open(project_url)
+        project.delete()
 
-        yes_button = authenticated_page.get_by_role(role="button", name="Yes", exact=True)
-        yes_button.click()
-        
-        expect(authenticated_page.get_by_role("link", name=project_name, exact=True)).to_have_count(0)
+        expect(dashboard.search_field).to_be_visible()
+        expect(dashboard.find_project_by_name(project_name)).to_have_count(0)
