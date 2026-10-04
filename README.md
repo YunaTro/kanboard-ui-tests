@@ -32,19 +32,6 @@ Project creation and deletion support test setup and cleanup; they are not separ
 
 ## Project Structure
 
-```text
-kanboard-ui-tests/
-    tests/
-        conftest.py
-        test_login.py
-        test_tasks.py
-    compose.yaml
-    pytest.ini
-    requirements.txt
-    .gitignore
-    README.md
-```
-
 - `conftest.py`: browser settings, authentication, and temporary project fixtures.
 - `test_login.py`: login form and authentication checks.
 - `test_tasks.py`: task creation and persistence checks.
@@ -150,3 +137,20 @@ docker compose down
 ```
 
 The named Docker volume preserves application data between starts.
+
+## Test Architecture
+
+UI interactions are organized using the Page Object pattern. Each class groups locators and actions for a specific screen or workflow:
+
+- `LoginPage` — login form interactions.
+- `DashboardPage` — dashboard elements and navigation to project creation.
+- `CreateProjectPage` — project creation form.
+- `ProjectPage` — project navigation, task selection, and project deletion.
+- `CreateTaskPage` — task creation form.
+- `TaskPage` — task details and page reload.
+
+Tests describe user scenarios and verify outcomes with Playwright’s `expect` assertions. Page Objects encapsulate interface details, while pytest fixtures manage authentication and temporary test data.
+
+Each task scenario uses a separate project with a unique name. The project fixture performs cleanup in a `finally` block, including when a test assertion fails.
+
+Page Objects reuse the Playwright `Page` supplied by fixtures and preserve its built-in auto-waiting behavior. The refactoring retains the existing checks for login, invalid credentials, and task persistence after reload.

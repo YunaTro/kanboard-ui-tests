@@ -1,39 +1,29 @@
-from playwright.sync_api import Page, expect
+from playwright.sync_api import expect
 from uuid import uuid4
 
+from pages.create_task_page import CreateTaskPage
+from pages.task_page import TaskPage
+from pages.project_page import ProjectPage
+
 def test_created_task_is_preserved_after_reload(authenticated_page, test_project):
-    authenticated_page.goto(test_project["url"])
-
-    settings_link = authenticated_page.get_by_role("link", name="Configure this project")
-    settings_link.click()
-
-    new_task_link = authenticated_page.get_by_role("link", name="Add a new task")
-    new_task_link.click()
+    project = ProjectPage(authenticated_page)
+    project.open(test_project["url"])
+    project.open_settings()
+    project.open_task_creation()
 
     task_name = f"UI task {uuid4().hex[:8]}"
     task_desc = "This is a UI task for training QA-project"
 
-    title_field = authenticated_page.get_by_label("Title", exact=True)
-    title_field.fill(task_name)
+    task_form = CreateTaskPage(authenticated_page)
+    task_form.create(task_name, task_desc)
 
-    desc_field = authenticated_page.get_by_label("Description", exact=True)
-    desc_field.fill(task_desc)
+    project.open_task_list()
+    project.open_task(task_name)
 
-    save_button = authenticated_page.get_by_role(role="button", name="Save", exact=True)
-    save_button.click()
+    task = TaskPage(authenticated_page)
+    expect(task.title).to_have_text(task_name)
+    expect(task.description).to_have_text(task_desc)
 
-    list_link = authenticated_page.get_by_role(role="link", name="List", exact=True)
-    list_link.click()
-
-    task_link = authenticated_page.get_by_role("link", name=task_name, exact=True)
-    task_link.click()
-
-    task_title = authenticated_page.locator("#task-summary h2")
-    expect(task_title).to_have_text(task_name)
-
-    task_description = authenticated_page.locator(".accordion-content .markdown p")
-    expect(task_description).to_have_text(task_desc)
-
-    authenticated_page.reload()
-    expect(task_title).to_have_text(task_name)
-    expect(task_description).to_have_text(task_desc)
+    task.reload()
+    expect(task.title).to_have_text(task_name)
+    expect(task.description).to_have_text(task_desc)
